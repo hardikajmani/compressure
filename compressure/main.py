@@ -6,7 +6,7 @@ from argparse import ArgumentParser
 from pprint import pformat
 from pathlib import Path
 from typing import Sequence, Union, Optional
-
+from PyQt6.QtCore import QObject, QThread
 import ipdb  # noqa
 import numpy as np
 
@@ -142,12 +142,24 @@ class CompressureSystem(object):
         except KeyError:
             workdir = self.persistence.init_slices_dir(fpath_encode, superframe_size)
 
-            slicer = VideoSlicer(
+            self.slicer = VideoSlicer(
                 fpath_in=fpath_encode,
                 superframe_size=superframe_size,
-                workdir=workdir
+                workdir=workdir,
+                n_workers=n_workers
             )
-            slicer.slice_video(n_workers=n_workers)
+            self.thread = QThread()
+            # Step 4: Move worker to the thread
+            self.slicer.moveToThread(self.thread)
+            # Step 5: Connect signals and slots
+            self.thread.started.connect(self.slicer.run)
+            self.slicer.finished.connect(self.thread.quit)
+            self.slicer.finished.connect(self.slicer.deleteLater)
+            self.thread.finished.connect(self.thread.deleteLater)
+            self.slicer.progress.connect(self.reportProgress)
+            # Step 6: Start the thread
+            self.thread.start()
+            # slicer.run()
             slices = self.persistence.add_slices(fpath_source, fpath_encode, superframe_size)
 
         return slices

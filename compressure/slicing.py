@@ -4,6 +4,7 @@ from multiprocessing import Pool
 import os
 from pathlib import Path
 from pprint import pformat
+from PyQt6.QtCore import QObject, QThread, pyqtSignal
 
 import numpy as np
 from tqdm import tqdm
@@ -25,15 +26,20 @@ class VideoSlicerDefaults(object):
     workdir = VideoSlicerPersistenceDefaults.workdir
 
 
-class VideoSlicer(object):
+class VideoSlicer(QObject):
+    finished = pyqtSignal()
+    progress = pyqtSignal(int)
+
     def __init__(self, fpath_in, superframe_size=6,
                  workdir=VideoSlicerDefaults.workdir,
+                 n_workers=0
                  ):
         self.fpath_in = fpath_in
         self.video_metadata = VideoMetadata(self.fpath_in)
         self.superframe_size = superframe_size
         self.slice_duration = self.superframe_size / self.video_metadata.fps
         self.workdir = str(Path(workdir))
+        self.n_workers = n_workers
         os.makedirs(self.workdir, exist_ok=True)
 
         self._init_start_times()
@@ -46,8 +52,8 @@ class VideoSlicer(object):
             1 / self.video_metadata.fps
         )
 
-    def slice_video(self, n_workers=0):
-        if n_workers > 0:
+    def run(self):
+        if self.n_workers > 0:
             args_list = [
                 (
                     self.fpath_in,
@@ -57,7 +63,7 @@ class VideoSlicer(object):
                 )
                 for i, start_time in enumerate(self.start_times)
             ]
-            with Pool(n_workers) as p:
+            with Pool(self.n_workers) as p:
                 p.starmap(
                     self.extract_single_slice,
                     tqdm(
@@ -79,6 +85,7 @@ class VideoSlicer(object):
                     start_time,
                     self.slice_duration
                 )
+        self.finished.emit()
 
     def extract_single_slice(
         self,
@@ -118,7 +125,7 @@ class VideoCompressureValve(object):
         self._velocity_numerator = superframe_size
         self._velocity_denominator = superframe_size
 
-        self.slicer.slice_video()
+        self.slicer.run()
         self.buffer = deque(self.slicer.slices)
         self.index = 0
 

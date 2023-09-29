@@ -115,12 +115,12 @@ class VideoCompressionPersistence(VideoPersistence):
     """
     def __init__(self, fpath_manifest=VideoCompressionPersistenceDefaults.fpath_manifest,
                  workdir=VideoCompressionPersistenceDefaults.workdir,
-                 autosave=True, expect_existing_manifest=False, overwrite=False,
+                 autosave=False, expect_existing_manifest=False, overwrite=False,
                  version=VideoCompressionPersistenceDefaults.version):
 
         super().__init__(fpath_manifest=VideoCompressionPersistenceDefaults.fpath_manifest,
                          workdir=VideoCompressionPersistenceDefaults.workdir,
-                         autosave=True, expect_existing_manifest=False,
+                         autosave=False, expect_existing_manifest=False,
                          overwrite=False,
                          version=VideoCompressionPersistenceDefaults.version)
 
